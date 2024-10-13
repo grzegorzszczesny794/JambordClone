@@ -1,0 +1,7 @@
+<canvas #canvas></canvas>
+<div>
+  <button (click)="clearCanvas()">Wyczyść</button>
+  <input type="color" (change)="changeColor($event)">
+  <input type="range" min="1" max="20" [(ngModel)]="lineWidth">
+  <button (click)="undo()">Cofnij</button>
+</div>

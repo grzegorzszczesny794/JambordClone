@@ -1,0 +1,42 @@
+<style>
+ 
+</style>
+
+<div class="main flex flex-col">
+  <login-component></login-component>
+  <div class="flex flex-col">
+
+    <p>test</p>
+
+    @if (isLoading) {
+    <p>Loading...</p>
+    }
+
+    <div>
+      <ul *ngIf="!isLoading && !error">
+        <li *ngFor="let post of posts">
+          <h3>{{ post.title }}</h3>
+          <p>{{ post.body }}</p>
+        </li>
+      </ul>
+    </div>
+  
+    <div>
+      <button (click)="buttonClick($event)">Click</button>
+    </div>
+
+    <app-drawing-board></app-drawing-board>
+
+</div>
+</div>
+
+<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
+<!-- * * * * * * * * * * * The content above * * * * * * * * * * * * -->
+<!-- * * * * * * * * * * is only a placeholder * * * * * * * * * * * -->
+<!-- * * * * * * * * * * and can be replaced.  * * * * * * * * * * * -->
+<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
+<!-- * * * * * * * * * * End of Placeholder  * * * * * * * * * * * * -->
+<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
+
+
+<router-outlet />
