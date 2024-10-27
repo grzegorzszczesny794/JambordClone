@@ -1,28 +1,10 @@
 import { AfterViewInit, Component, ElementRef, HostListener, ViewChild } from "@angular/core";
+import { PastedImage } from "../../models/pasted-image";
+import { DrawingAction } from "../../models/drawing-action";
+import { ShapeAction } from "../../models/shape-action";
+import { ShapeTool } from "../../models/shape-tool";
+import { Action } from "../../models/action";
 
-interface PastedImage {
-  id: number;
-  img: HTMLImageElement;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface DrawingAction {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  color: string;
-  lineWidth: number;
-}
-
-type Action =
-  | { type: 'draw'; lines: DrawingAction[] }
-  | { type: 'paste'; image: PastedImage }
-  | { type: 'move'; imageId: number; fromX: number; fromY: number; toX: number; toY: number }
-  | { type: 'resize'; imageId: number; fromWidth: number; fromHeight: number; toWidth: number; toHeight: number };
 
 @Component({
   selector: 'app-drawing-board',
@@ -33,6 +15,7 @@ type Action =
     }
   `]
 })
+
 export class DrawingBoardComponent implements AfterViewInit {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
   private ctx!: CanvasRenderingContext2D;
@@ -54,10 +37,30 @@ export class DrawingBoardComponent implements AfterViewInit {
   private lastMoveAction: Action | null = null;
   private lastResizeAction: Action | null = null;
 
+  currentTool: ShapeTool = 'freehand';
+  private tempCanvas!: HTMLCanvasElement;
+  private tempCtx!: CanvasRenderingContext2D;
+
   ngAfterViewInit() {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
     this.resizeCanvas();
+
+    this.tempCanvas = document.createElement('canvas');
+    this.tempCtx = this.tempCanvas.getContext('2d')!;
+    this.resizeTempCanvas();
+  }
+
+  private resizeCanvas() {
+    const canvas = this.canvasRef.nativeElement;
+    canvas.width = window.innerWidth - 20;
+    canvas.height = window.innerHeight - 100;
+    this.resizeTempCanvas();
+  }
+
+  private resizeTempCanvas() {
+    this.tempCanvas.width = this.canvasRef.nativeElement.width;
+    this.tempCanvas.height = this.canvasRef.nativeElement.height;
   }
 
   @HostListener('window:resize')
@@ -82,6 +85,7 @@ export class DrawingBoardComponent implements AfterViewInit {
   }
 
   private pasteImage(blob: Blob) {
+
     const reader = new FileReader();
     reader.onload = (event: ProgressEvent<FileReader>) => {
       const img = new Image();
@@ -103,44 +107,41 @@ export class DrawingBoardComponent implements AfterViewInit {
     reader.readAsDataURL(blob);
   }
 
-  private resizeCanvas() {
-    const canvas = this.canvasRef.nativeElement;
-    canvas.width = window.innerWidth - 20;
-    canvas.height = window.innerHeight - 100;
-  }
-
   private redrawCanvas() {
     const canvas = this.canvasRef.nativeElement;
     this.ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    this.pastedImages = [];
+    const updatedImages: { [key: number]: PastedImage } = {};
+
     for (const action of this.actions) {
       switch (action.type) {
-        case 'paste':
-          this.pastedImages.push(action.image);
-          break;
-        case 'move':
-          const movedImage = this.pastedImages.find(img => img.id === action.imageId);
-          if (movedImage) {
-            movedImage.x = action.toX;
-            movedImage.y = action.toY;
-          }
-          break;
-        case 'resize':
-          const resizedImage = this.pastedImages.find(img => img.id === action.imageId);
-          if (resizedImage) {
-            resizedImage.width = action.toWidth;
-            resizedImage.height = action.toHeight;
-          }
-          break;
         case 'draw':
           for (const line of action.lines) {
             this.drawLine(line);
           }
           break;
+        case 'paste':
+          updatedImages[action.image.id] = { ...action.image };
+          break;
+        case 'move':
+          if (updatedImages[action.imageId]) {
+            updatedImages[action.imageId].x = action.toX;
+            updatedImages[action.imageId].y = action.toY;
+          }
+          break;
+        case 'resize':
+          if (updatedImages[action.imageId]) {
+            updatedImages[action.imageId].width = action.toWidth;
+            updatedImages[action.imageId].height = action.toHeight;
+          }
+          break;
+        case 'shape':
+          this.drawShape(action.shape);
+          break;
       }
     }
 
+    this.pastedImages = Object.values(updatedImages);
     for (const img of this.pastedImages) {
       this.ctx.drawImage(img.img, img.x, img.y, img.width, img.height);
     }
@@ -153,6 +154,28 @@ export class DrawingBoardComponent implements AfterViewInit {
     this.ctx.strokeStyle = line.color;
     this.ctx.lineWidth = line.lineWidth;
     this.ctx.lineCap = 'round';
+    this.ctx.stroke();
+  }
+
+  private drawShape(shape: ShapeAction) {
+    this.ctx.strokeStyle = shape.color;
+    this.ctx.lineWidth = shape.lineWidth;
+    this.ctx.beginPath();
+
+    switch (shape.tool) {
+      case 'line':
+        this.ctx.moveTo(shape.startX, shape.startY);
+        this.ctx.lineTo(shape.endX, shape.endY);
+        break;
+      case 'rectangle':
+        this.ctx.rect(shape.startX, shape.startY, shape.endX - shape.startX, shape.endY - shape.startY);
+        break;
+      case 'circle':
+        const radius = Math.sqrt(Math.pow(shape.endX - shape.startX, 2) + Math.pow(shape.endY - shape.startY, 2));
+        this.ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
+        break;
+    }
+
     this.ctx.stroke();
   }
 
@@ -191,7 +214,9 @@ export class DrawingBoardComponent implements AfterViewInit {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    if (this.isDragging && this.selectedImage && !this.isResizing) {
+    if (this.isDragging
+      && this.selectedImage
+      && !this.isResizing) {
       const fromX = this.selectedImage.x;
       const fromY = this.selectedImage.y;
       this.selectedImage.x = x - this.dragStartX;
@@ -228,7 +253,9 @@ export class DrawingBoardComponent implements AfterViewInit {
         this.selectedImage.height = newWidth / aspectRatio;
       }
 
-      if (this.lastResizeAction && this.lastResizeAction.type === 'resize' && this.lastResizeAction.imageId === this.selectedImage.id) {
+      if (this.lastResizeAction
+          && this.lastResizeAction.type === 'resize'
+          && this.lastResizeAction.imageId === this.selectedImage.id) {
         this.lastResizeAction.toWidth = this.selectedImage.width;
         this.lastResizeAction.toHeight = this.selectedImage.height;
       } else {
@@ -244,15 +271,65 @@ export class DrawingBoardComponent implements AfterViewInit {
       }
       this.redrawCanvas();
     } else if (this.isDrawing) {
-      this.draw(x, y);
+      if (this.currentTool === 'freehand') {
+        this.draw(x, y);
+      } else {
+        this.drawTempShape(x, y);
+      }
     }
   }
 
-  @HostListener('mouseup')
-  onMouseUp() {
-    if (this.isDrawing && this.currentDrawingAction.length > 0) {
-      this.actions.push({ type: 'draw', lines: this.currentDrawingAction });
-      this.currentDrawingAction = [];
+  private drawTempShape(x: number, y: number) {
+    this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
+    this.tempCtx.strokeStyle = this.strokeStyle;
+    this.tempCtx.lineWidth = this.lineWidth;
+    this.tempCtx.beginPath();
+
+    switch (this.currentTool) {
+      case 'line':
+        this.tempCtx.moveTo(this.lastX, this.lastY);
+        this.tempCtx.lineTo(x, y);
+        break;
+      case 'rectangle':
+        this.tempCtx.rect(this.lastX, this.lastY, x - this.lastX, y - this.lastY);
+        break;
+      case 'circle':
+        const radius = Math.sqrt(Math.pow(x - this.lastX, 2) + Math.pow(y - this.lastY, 2));
+        this.tempCtx.arc(this.lastX, this.lastY, radius, 0, 2 * Math.PI);
+        break;
+    }
+
+    this.tempCtx.stroke();
+    this.ctx.clearRect(0, 0, this.canvasRef.nativeElement.width, this.canvasRef.nativeElement.height);
+    this.redrawCanvas();
+    this.ctx.drawImage(this.tempCanvas, 0, 0);
+  }
+
+  @HostListener('mouseup', ['$event'])
+  onMouseUp(event: MouseEvent) {
+    if (this.isDrawing) {
+      if (this.currentTool === 'freehand' && this.currentDrawingAction.length > 0) {
+        this.actions.push({ type: 'draw', lines: this.currentDrawingAction });
+      } else if (this.currentTool !== 'freehand') {
+        const canvas = this.canvasRef.nativeElement;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        this.actions.push({
+          type: 'shape',
+          shape: {
+            tool: this.currentTool,
+            startX: this.lastX,
+            startY: this.lastY,
+            endX: x,
+            endY: y,
+            color: this.strokeStyle,
+            lineWidth: this.lineWidth
+          }
+        });
+        this.redrawCanvas();
+      }
     }
     this.isDrawing = false;
     this.isDragging = false;
@@ -263,14 +340,13 @@ export class DrawingBoardComponent implements AfterViewInit {
 
   @HostListener('mouseleave')
   onMouseLeave() {
-    this.onMouseUp();
+    this.onMouseUp(new MouseEvent('mouseup'));
   }
 
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
-    // Sprawdź, czy naciśnięto Ctrl+Z (Windows/Linux) lub Cmd+Z (Mac)
     if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
-      event.preventDefault(); // Zapobiega domyślnej akcji przeglądarki
+      event.preventDefault();
       this.undo();
     }
   }

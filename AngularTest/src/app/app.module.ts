@@ -6,7 +6,7 @@ import { AppComponent } from './app.component';
 import { LoginComponent } from '../pages/login/login.component';
 import { PostService } from '../services/post.service';
 import { HttpClientModule } from '@angular/common/http';
-import { DrawingBoardComponent } from '../pages/canvas/drawing-board.component';
+import { DrawingBoardComponent } from '../pages/drawing-board/drawing-board.component';
 import { FormsModule } from '@angular/forms';
 
 @NgModule({

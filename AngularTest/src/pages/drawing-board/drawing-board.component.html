@@ -4,4 +4,10 @@
   <input type="color" (change)="changeColor($event)">
   <input type="range" min="1" max="20" [(ngModel)]="lineWidth">
   <button (click)="undo()">Cofnij</button>
+  <select [(ngModel)]="currentTool">
+    <option value="freehand">Odręczne</option>
+    <option value="line">Linia prosta</option>
+    <option value="rectangle">Prostokąt</option>
+    <option value="circle">Okrąg</option>
+  </select>
 </div>

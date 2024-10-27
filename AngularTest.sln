@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "JambordCloneApp", "AngularTest\JambordCloneApp.esproj", "{DF359DA3-B29F-4CF9-96FA-DBABF7750202}"
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "JambordFrontend", "AngularTest\JambordFrontend.esproj", "{DF359DA3-B29F-4CF9-96FA-DBABF7750202}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
