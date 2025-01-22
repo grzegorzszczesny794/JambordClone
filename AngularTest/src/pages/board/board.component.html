@@ -1,0 +1,54 @@
+<div class="drawing-board">
+  <div class="slides-container">
+    <app-slide *ngFor="let slide of slides; let i = index"
+               [slide]="slide"
+               [isActive]="currentSlideIndex === i"
+               [currentTool]="currentTool"
+               [lineWidth]="lineWidth"
+               [strokeStyle]="strokeStyle"
+               (slideChanged)="onSlideChanged($event)"
+               [style.display]="currentSlideIndex === i ? 'block' : 'none'"></app-slide>
+  </div>
+
+  <div class="controls">
+    <div class="drawing-controls">
+      <button (click)="clearCurrentSlide()">Wyczyść</button>
+      <input type="color" [value]="strokeStyle" (change)="changeColor($event)">
+      <input type="range" min="1" max="20" [(ngModel)]="lineWidth">
+      <button (click)="undoCurrentSlide()">Cofnij</button>
+      <select [(ngModel)]="currentTool">
+        <option value="freehand">Odręczne</option>
+        <option value="line">Linia prosta</option>
+        <option value="rectangle">Prostokąt</option>
+        <option value="circle">Okrąg</option>
+      </select>
+    </div>
+
+    <div class="slides-navigation">
+      <button (click)="addSlide()" [disabled]="slides.length >= 20">
+        Nowy slajd
+      </button>
+      <button (click)="removeCurrentSlide()" [disabled]="slides.length <= 1">
+        Usuń slajd
+      </button>
+      <div class="slide-numbers">
+        <button (click)="previousSlide()" [disabled]="currentSlideIndex === 0">
+          ←
+        </button>
+        <span>{{currentSlideIndex + 1}} / {{slides.length}}</span>
+        <button (click)="nextSlide()" [disabled]="currentSlideIndex === slides.length - 1">
+          →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="thumbnails">
+    <div *ngFor="let slide of slides; let i = index"
+         class="thumbnail"
+         [class.active]="currentSlideIndex === i"
+         (click)="switchToSlide(i)">
+      Slajd {{i + 1}}
+    </div>
+  </div>
+</div>
